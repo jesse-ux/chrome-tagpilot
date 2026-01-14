@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TagPilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #141414;
+      --bg-tertiary: #1c1c1c;
+      --text-primary: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --text-muted: #666666;
+      --accent: #00ff9d;
+      --accent-dim: rgba(0, 255, 157, 0.1);
+      --border: #2a2a2a;
+      --border-strong: #333333;
+      --glow: rgba(0, 255, 157, 0.3);
+    }
+
+    body {
+      width: 100%;
+      min-height: 480px;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* 背景网格效果 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 20px 20px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .header {
+      position: relative;
+      background: var(--bg-secondary);
+      padding: 16px 20px;
+      border-bottom: 2px solid var(--border-strong);
+      z-index: 1;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--glow);
+    }
+
+    .header-title {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-title::before {
+      content: '[TAGPILOT]';
+      font-size: 10px;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+    }
+
+    .stats {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats::before {
+      content: '◆';
+      color: var(--accent);
+      font-size: 8px;
+    }
+
+    .notice {
+      position: fixed;
+      top: 64px;
+      left: 16px;
+      right: 16px;
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: pre-line;
+      z-index: 5;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+
+    .notice.hidden {
+      opacity: 0;
+      transform: translateY(-8px);
+      visibility: hidden;
+    }
+
+    .notice.success {
+      color: var(--accent);
+      border-left: 2px solid var(--accent);
+    }
+
+    .notice.error {
+      color: #ff7a7a;
+      border-left: 2px solid #ff7a7a;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .progress-wrap {
+      position: relative;
+      padding: 10px 20px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      z-index: 1;
+    }
+
+    .progress-wrap.hidden {
+      display: none;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--glow);
+      transition: width 0.2s ease;
+    }
+
+    .progress-text {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .search-box {
+      position: relative;
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      z-index: 1;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .filter-tags {
+      padding: 12px 20px;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 1;
+      position: relative;
+    }
+
+    .filter-tag {
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-tag:hover {
+      background: var(--bg-secondary);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .filter-tag.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .results {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg-primary);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 自定义滚动条 */
+    .results::-webkit-scrollbar,
+    #tagList::-webkit-scrollbar,
+    #modalTagAutocomplete::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .results::-webkit-scrollbar-track,
+    #tagList::-webkit-scrollbar-track,
+    #modalTagAutocomplete::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    .results::-webkit-scrollbar-thumb,
+    #tagList::-webkit-scrollbar-thumb,
+    #modalTagAutocomplete::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 0;
+    }
+
+    .results::-webkit-scrollbar-thumb:hover,
+    #tagList::-webkit-scrollbar-thumb:hover,
+    #modalTagAutocomplete::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    .bookmark-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .bookmark-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .bookmark-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .bookmark-item:hover::before {
+      opacity: 1;
+    }
+
+    .bookmark-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
+    .bookmark-title::before {
+      content: '→';
+      color: var(--accent);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .bookmark-item:hover .bookmark-title::before {
+      opacity: 1;
+    }
+
+    .bookmark-url {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'JetBrains Mono', monospace;
+      padding-left: 20px;
+    }
+
+    .bookmark-edit-btn {
+      position: absolute;
+      right: 20px;
+      top: 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      opacity: 0;
+    }
+
+    .bookmark-item:hover .bookmark-edit-btn {
+      opacity: 1;
+    }
+
+    .bookmark-edit-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .bookmark-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding-left: 20px;
+      max-height: 56px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .tag {
+      padding: 3px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .no-results {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    .no-results::before {
+      content: '[NO_MATCHES_FOUND]';
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+    }
+
+    .loading {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .actions {
+      padding: 12px 20px;
+      background: var(--bg-secondary);
+      border-top: 2px solid var(--border-strong);
+      display: flex;
+      gap: 8px;
+      z-index: 1;
+      position: relative;
+      margin-top: auto;
+    }
+
+    .actions::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--glow);
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .settings-panel {
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      position: relative;
+      z-index: 2;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      gap: 12px;
+    }
+
+    .toggle-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toggle-title {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toggle-help {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-strong);
+      transition: all 0.2s ease;
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: '';
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      top: 2px;
+      background: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(22px);
+      background: var(--accent);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      min-height: 120px;
+      resize: vertical;
+      outline: none;
+    }
+
+    .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .tag-manage-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .tag-manage-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .tag-action-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tag-action-btn:hover {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .tag-edit-suggest {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-strong);
+      margin-top: 4px;
+      max-height: 160px;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .tag-edit-suggest.hidden {
+      display: none;
+    }
+
+    .tag-edit-suggest-item {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s ease;
+    }
+
+    .tag-edit-suggest-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .tag-save-btn {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tag-save-btn:hover {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .tag-delete-btn {
+      border-color: #ff7a7a;
+      color: #ff7a7a;
+    }
+
+    .tag-delete-btn:hover {
+      background: rgba(255, 122, 122, 0.12);
+      color: #ff9a9a;
+    }
+
+    .tag-delete-armed {
+      background: rgba(255, 122, 122, 0.18);
+      color: #ffb3b3;
+      border-color: #ffb3b3;
+    }
+
+    .form-help {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--accent);
+      background: var(--bg-tertiary);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-secondary:hover {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* 🔥 弹窗样式 */
+    #editTagModal.modal-hidden,
+    #tagManageModal.modal-hidden {
+      display: none !important;
+    }
+
+    #editTagModal.modal-visible,
+    #tagManageModal.modal-visible {
+      display: flex !important;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="header-title">TagPilot</div>
+    <div class="stats" id="stats">初始化中...</div>
+  </div>
+
+  <div class="notice hidden" id="notice"></div>
+
+  <div class="view active" id="listView">
+    <div class="progress-wrap hidden" id="progressWrap">
+      <div class="progress-bar">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">PROCESSING: 0/0 (0%)</div>
+    </div>
+    <div class="search-box">
+      <input type="text" class="search-input" id="searchInput" placeholder="SEARCH_DATABASE..." autofocus>
+    </div>
+
+    <div class="filter-tags" id="filterTags"></div>
+
+    <div class="results" id="results">
+      <div class="loading">LOADING_ARCHIVE...</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="batchBtn">批量整理</button>
+      <button class="btn" id="settingsBtn">系统设置</button>
+    </div>
+  </div>
+
+  <div class="view" id="settingsView">
+    <div class="settings-panel">
+    <div class="form-group">
+      <label for="apiEndpoint">API_ENDPOINT</label>
+      <input type="text" id="apiEndpoint" placeholder="https://api.openai.com/v1">
+      <div class="form-help">// API 基础地址，留空使用默认 OpenAI</div>
+    </div>
+
+    <div class="form-group">
+      <label for="apiKey">OPENAI_API_KEY</label>
+      <input type="password" id="apiKey" placeholder="sk-...">
+      <div class="form-help">// 用于自动分类书签，仅存储在本地</div>
+    </div>
+
+    <div class="form-group">
+      <label for="model">MODEL_SELECTION</label>
+      <input type="text" id="model" value="gpt-4o-mini">
+      <div class="form-help">// 推荐使用 gpt-4o-mini（便宜快速）</div>
+    </div>
+
+    <div class="form-group">
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <div class="toggle-title">DEBUG_LOGS</div>
+          <div class="toggle-help">控制控制台输出调试日志</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="debugLog">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <div class="toggle-title">DEBUG_EVIDENCE</div>
+          <div class="toggle-help">让模型返回标签证据（仅在需要时启用）</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="debugEvidence">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button class="btn-secondary" id="testConfigBtn" style="flex: 1;">测试配置</button>
+      <button class="btn-primary" id="saveConfigBtn" style="flex: 1;">保存配置</button>
+    </div>
+
+    <div class="form-group" style="margin-top: 16px;">
+      <label>TAG_MANAGEMENT</label>
+      <div class="form-help">// 在单独弹窗里管理标签</div>
+      <button class="btn-secondary" id="openTagManageBtn" style="width: 100%; margin-top: 8px;">打开标签管理</button>
+    </div>
+
+  </div>
+    <div class="actions">
+      <button class="btn" id="backToListBtn">返回列表</button>
+    </div>
+  </div>
+
+  <!-- 🔥 标签管理弹窗 -->
+  <div id="tagManageModal" class="modal-hidden">
+    <div style="background: var(--bg-secondary); border: 2px solid var(--border-strong); width: 90%; max-width: 560px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="padding: 16px 20px; border-bottom: 2px solid var(--border-strong); display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-family: 'Archivo Black', sans-serif; font-size: 16px; color: var(--text-primary);">标签管理</div>
+        <button id="closeTagManageBtn" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px 8px;">×</button>
+      </div>
+
+      <div style="padding: 16px 20px; overflow-y: auto;">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;">添加新标签</div>
+        <div style="position: relative;">
+          <input
+            type="text"
+            id="newTagInput"
+            class="tag-manage-input"
+            placeholder="输入新标签名称..."
+            autocomplete="off"
+          />
+          <div id="tagAutocomplete" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--border-strong); margin-top: 4px; z-index: 100;"></div>
+        </div>
+
+        <button class="btn-secondary" id="addTagBtn" style="width: 100%; margin-top: 8px;">添加标签</button>
+
+        <div style="margin-top: 16px;">
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;">标签列表</div>
+          <div id="tagList" style="max-height: 260px; overflow-y: auto; border: 1px solid var(--border); padding: 8px;"></div>
+        </div>
+      </div>
+
+      <div style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
+        <button class="btn" id="tagManageDoneBtn" style="flex: 1;">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔥 标签编辑弹窗（放在两个视图之外） -->
+  <div id="editTagModal" class="modal-hidden">
+    <div style="background: var(--bg-secondary); border: 2px solid var(--border-strong); width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+      <!-- 弹窗标题 -->
+      <div style="padding: 16px 20px; border-bottom: 2px solid var(--border-strong); display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-family: 'Archivo Black', sans-serif; font-size: 16px; color: var(--text-primary);">编辑标签</div>
+        <button id="closeModalBtn" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px 8px;">×</button>
+      </div>
+
+      <!-- 书签信息 -->
+      <div style="padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg-tertiary);">
+        <div id="modalBookmarkTitle" style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px; font-weight: 500;"></div>
+        <div id="modalBookmarkUrl" style="font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+      </div>
+
+      <!-- 当前标签 -->
+      <div style="padding: 16px 20px; flex: 1; overflow-y: auto;">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;">当前标签</div>
+        <div id="modalCurrentTags" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px;"></div>
+
+        <!-- 添加标签 -->
+        <div style="margin-top: 16px;">
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;">添加标签</div>
+          <div style="position: relative;">
+            <input
+              type="text"
+              id="modalTagInput"
+              placeholder="搜索或输入新标签..."
+              autocomplete="off"
+              style="width: 100%; padding: 10px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-strong); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;"
+            />
+            <!-- 标签自动完成下拉列表 -->
+            <div id="modalTagAutocomplete" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--border-strong); margin-top: 4px; z-index: 100;"></div>
+          </div>
+          <button class="btn-secondary" id="modalAddTagBtn" style="width: 100%; margin-top: 8px;">添加标签</button>
+        </div>
+
+      </div>
+
+      <!-- 底部按钮 -->
+      <div style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
+        <button class="btn" id="modalCancelBtn" style="flex: 1;">取消</button>
+        <button class="btn-primary" id="modalSaveBtn" style="flex: 1;">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔥 新增：标签规范化和索引工具（必须在 popup.js 之前加载） -->
+  <script src="utils/tagNormalizer.js"></script>
+  <script src="utils/tagIndex.js"></script>
+  <script src="utils/tagResolver.js"></script>
+  <script src="utils/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+{
+  "apiEndpoint": "https://api.openai.com/v1",
+  "openaiApiKey": "你的 API Key",
+  "model": "gpt-4o-mini",
+  "autoTag": true,
+  "maxRetries": 3,
+  "language": "zh-CN"
+}

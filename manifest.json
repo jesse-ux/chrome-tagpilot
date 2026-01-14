@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "TagPilot - AI 智能书签领航员",
+  "short_name": "TagPilot",
   "version": "1.0.0",
-  "description": "让你的书签管理如飞行般顺畅 - AI 自动分类，智能搜索",
+  "description": "AI 自动为书签打标签，智能整理，快速搜索。支持 OpenAI 及多家国内 LLM 服务。",
   "permissions": [
     "bookmarks",
     "storage",
@@ -12,9 +13,11 @@
   ],
   "host_permissions": [
     "https://api.openai.com/*",
-    "https://r.jina.ai/*",
-    "http://*/*",
-    "https://*/*"
+    "https://api.moonshot.cn/*",
+    "https://open.bigmodel.cn/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://r.jina.ai/*"
   ],
   "content_scripts": [
     {
@@ -32,7 +35,12 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "搜索书签"
+    "default_title": "TagPilot - 搜索书签",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "side_panel": {
     "default_path": "popup.html"
@@ -41,5 +49,6 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "homepage_url": "https://github.com/jesse-ux/chrome-tagpilot"
 }
